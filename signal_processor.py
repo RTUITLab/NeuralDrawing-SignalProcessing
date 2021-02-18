@@ -70,6 +70,8 @@ class EEG(object):
         self.delimiter = ","
         self.data_queue = queue.Queue()
         devicesUsed = 0
+        self.host = 'localhost'
+        self.port = 777
 
         for device in hid.find_all_hid_devices():
             if device.product_name == 'EEG Signals':
@@ -173,8 +175,6 @@ class SignalProcessor(object):
 
     counter = 0
     last_values = np.zeros(30)
-    global counter
-    global last_values
 
     def value_predicted(self, value):
         '''Метод вызывается каждый раз,
