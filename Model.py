@@ -78,7 +78,8 @@ class Model:
 
         preds = F.log_softmax(out, dim=1).argmax(dim=1)
 
-        return self.classes[preds.item()]
+
+        return preds.item()
 
 
 if __name__ == '__main__':
