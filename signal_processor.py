@@ -70,8 +70,6 @@ class EEG(object):
         self.delimiter = ","
         self.data_queue = queue.Queue()
         devicesUsed = 0
-        self.host = 'localhost'
-        self.port = 777
 
         for device in hid.find_all_hid_devices():
             if device.product_name == 'EEG Signals':
@@ -128,15 +126,29 @@ class EEG(object):
 class SignalProcessor(object):
     HEADSET_FREQUENCY = 128  # Гарнитура выдает 128 значений в секунду
 
-    def __init__(self, model_name=None, read_from_file=False, host=None, port=None):
+    def __init__(self, model_name=None, read_from_file=False, host=None, port=None, interval=0.1):
         # choose reading variant
         if read_from_file:
             self.eeg = FileEEG('concentrate_t.csv')
         else:
             self.eeg = EEG()
 
+        self.second_to_average = 3
+        self.interval = interval
+        self.last_values_size = int(self.second_to_average / self.interval)
+
+        self.last_values = np.zeros(self.last_values_size)
+
+        self.counter = 0
+
         self.host = host
         self.port = port
+
+        if host is None:
+            self.host = 'localhost'
+        if port is None:
+            self.port = 777
+
 
         self.model = None
         self.current_data = []
@@ -155,7 +167,9 @@ class SignalProcessor(object):
         while not self.eeg.data_queue.empty():
             self.eeg.data_queue.get()
 
-    def start_predicting(self, interval_sec=1):
+    def start_predicting(self, interval_sec=None):
+        if interval_sec is None:
+            interval_sec = self.interval
         if self.model is None:
             raise RuntimeError("Невозможно начать предсказывать результат: "
                                + "модель не задана")
@@ -170,11 +184,6 @@ class SignalProcessor(object):
     def stop_predicting(self):
         self.is_predicting = False
 
-    global counter
-    global last_values
-
-    counter = 0
-    last_values = np.zeros(30)
 
     def value_predicted(self, value):
         '''Метод вызывается каждый раз,
@@ -188,20 +197,21 @@ class SignalProcessor(object):
         udp_socket = socket(AF_INET, SOCK_DGRAM)
         # encode - перекодирует введенные данные в байты, decode - обратно
 
-        global counter
-        print(counter > 29, counter)
-        if counter > 29:
-            shift5(last_values, 1)
-            last_values[-((counter + 1) % 30)] = value
-            counter += 1
-            data = str(last_values.mean())
+        # print(counter > 29, counter)
+
+        if self.counter >= self.last_values_size:
+            shift5(self.last_values, 1)
+            self.last_values[-((self.counter + 1) % self.last_values_size)] = value
+            self.counter += 1
+            data = str(int(self.last_values.mean() >= 0.5))
             data = str.encode(data)
             udp_socket.sendto(data, addr)
             data = bytes.decode(data)
             data = udp_socket.recvfrom(1024)
-        last_values[counter] = value
-        data = str(last_values.mean())
-        counter += 1
+            return
+        self.last_values[self.counter] = value
+        data = str(int(self.last_values.mean() >= 0.5))
+        self.counter += 1
         data = str.encode(data)
         udp_socket.sendto(data, addr)
         data = bytes.decode(data)

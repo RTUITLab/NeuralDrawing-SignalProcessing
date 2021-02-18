@@ -78,7 +78,6 @@ class Model:
 
         preds = F.log_softmax(out, dim=1).argmax(dim=1)
 
-
         return preds.item()
 
 
