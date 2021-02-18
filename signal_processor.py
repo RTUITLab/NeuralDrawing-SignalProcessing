@@ -1,6 +1,8 @@
+import time
 import queue
 from threading import Thread
 import numpy as np
+import pandas as pd
 import cyPyWinUSB as hid
 from cyCrypto.Cipher import AES
 import Model
@@ -64,11 +66,52 @@ class EEG(object):
         return self.data_queue.get()
 
 
+
+class FileEEG(object):
+    def __init__(self, filename):
+        self.data_queue = queue.Queue()
+        self.data = pd.read_csv(filename).values
+        self.start()
+
+    def get_data(self):
+        return self.data_queue.get()
+
+    def start(self):
+        self.is_reading = True
+        self.reading_thread = Thread(target=lambda: self.__start_reading())
+        self.reading_thread.start()
+
+    def stop(self):
+        self.is_reading = False
+
+    def __start_reading(self):
+        read_count = 0  # Общее число прочитанных записей
+
+        # Номер последней прочитанной записи;
+        # при достижении конца массива данных сбрасывается до 0
+        last_index = 0
+
+        start_time = time.time()  # Время начала считывания
+        frequency = 128
+        count_between_reading = 20
+        seconds_between_reading = count_between_reading / frequency
+        while self.is_reading:
+            current_time = time.time()
+            if ((current_time - start_time) /
+                seconds_between_reading) * count_between_reading > read_count:
+                self.data_queue.put(list(self.data[last_index][2:]))
+                last_index += 1
+                if last_index >= len(self.data):
+                    last_index = 0
+                read_count += 1
+            else:
+                time.sleep(seconds_between_reading / 2)
+
 class SignalProcessor(object):
     HEADSET_FREQUENCY = 128  # Гарнитура выдает 128 значений в секунду
 
     def __init__(self, model_name=None):
-        self.eeg = EEG()
+        self.eeg = FileEEG('concentrate_t.csv') # EEG()
         self.model = None
         self.current_data = []
         self.is_predicting = False
