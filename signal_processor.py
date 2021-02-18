@@ -173,6 +173,8 @@ class SignalProcessor(object):
 
     counter = 0
     last_values = np.zeros(30)
+    global counter
+    global last_values
 
     def value_predicted(self, value):
         '''Метод вызывается каждый раз,
