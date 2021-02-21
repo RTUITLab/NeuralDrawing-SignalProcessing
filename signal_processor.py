@@ -141,8 +141,6 @@ class SignalProcessor(object):
         self.last_values = np.zeros(self.last_values_size)
 
         self.counter = 0
-        
-        self.addr = (host, port)
 
         self.udp_socket = socket(AF_INET, SOCK_DGRAM)
 
@@ -151,6 +149,7 @@ class SignalProcessor(object):
         if port is None:
             self.port = 777
 
+        self.addr = (host, port)
 
         self.model = None
         self.current_data = []
