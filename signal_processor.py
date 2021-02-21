@@ -28,6 +28,7 @@ class FileEEG(object):
         self.data_queue = queue.Queue()
         self.data = pd.read_csv(filename).values
         self.start()
+        
 
     def get_data(self):
         return self.data_queue.get()
@@ -140,9 +141,10 @@ class SignalProcessor(object):
         self.last_values = np.zeros(self.last_values_size)
 
         self.counter = 0
+        
+        self.addr = (host, port)
 
-        self.host = host
-        self.port = port
+        self.udp_socket = socket(AF_INET, SOCK_DGRAM)
 
         if host is None:
             self.host = 'localhost'
@@ -190,11 +192,6 @@ class SignalProcessor(object):
         когда моделью было предсказано значение value
         '''
 
-        host = self.host
-        port = self.port
-        addr = (host, port)
-
-        udp_socket = socket(AF_INET, SOCK_DGRAM)
         # encode - перекодирует введенные данные в байты, decode - обратно
 
         # print(counter > 29, counter)
@@ -205,18 +202,13 @@ class SignalProcessor(object):
             self.counter += 1
             data = str(int(self.last_values.mean() >= 0.5))
             data = str.encode(data)
-            udp_socket.sendto(data, addr)
-            data = bytes.decode(data)
-            data = udp_socket.recvfrom(1024)
+            self.udp_socket.sendto(data, self.addr)
             return
         self.last_values[self.counter] = value
         data = str(int(self.last_values.mean() >= 0.5))
         self.counter += 1
         data = str.encode(data)
-        udp_socket.sendto(data, addr)
-        data = bytes.decode(data)
-        data = udp_socket.recvfrom(1024)
-        udp_socket.close()
+        self.udp_socket.sendto(data, self.addr)
 
     def __predicting(self, interval_sec):
         count_between_predicts = int(self.HEADSET_FREQUENCY * interval_sec)
