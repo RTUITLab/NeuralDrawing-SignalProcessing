@@ -149,7 +149,7 @@ class SignalProcessor(object):
         if port is None:
             self.port = 777
 
-        self.addr = (host, port)
+        self.addr = (elf.host, self.port)
 
         self.model = None
         self.current_data = []
